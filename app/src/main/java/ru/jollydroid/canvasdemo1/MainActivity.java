@@ -1,11 +1,10 @@
 package ru.jollydroid.canvasdemo1;
 
+import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Paint;
-import android.graphics.Rect;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.MotionEvent;
 import android.view.Surface;
 import android.view.SurfaceHolder;
@@ -17,8 +16,12 @@ public class MainActivity extends AppCompatActivity {
     private SurfaceView sv;
     private SurfaceHolder holder;
     private Surface surface;
+    private Bitmap paperBitmap;
 
     public static final String TAG = "happy";
+    private Canvas paperCanvas;
+
+    
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -39,13 +42,12 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public void surfaceCreated(SurfaceHolder holder) {
-            startPaint();
         }
 
         @Override
         public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
             stopPaint();
-            startPaint();
+            startPaint(width, height);
 
         }
 
@@ -55,35 +57,24 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
-    private void startPaint() {
+    private void startPaint(int width, int height) {
         surface = holder.getSurface();
-        Rect rect = holder.getSurfaceFrame();
-
-        Log.d(TAG, "rect.left " + rect.left);
-        Log.d(TAG, "rect.right " + rect.right);
-        Log.d(TAG, "rect.top " + rect.top);
-        Log.d(TAG, "rect.bottom " + rect.bottom);
-        Log.d(TAG, "rect.width " + rect.width());
-        Log.d(TAG, "rect.height " + rect.height());
-
-        Log.d(TAG, "sv.getX " + sv.getX());
-        Log.d(TAG, "sv.getY " + sv.getY());
-        Log.d(TAG, "sv.getTop " + sv.getTop());
-        Log.d(TAG, "sv.getBottom " + sv.getBottom());
-        Log.d(TAG, "sv.getLeft " + sv.getLeft());
-        Log.d(TAG, "sv.getRight " + sv.getRight());
-        Log.d(TAG, "sv.getWidth " + sv.getWidth());
-        Log.d(TAG, "sv.getHeight " + sv.getHeight());
+        paperBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        paperCanvas = new Canvas(paperBitmap);
 
         sv.setOnTouchListener(touchListener);
-
-
     }
 
     private void stopPaint() {
-        surface = null;
-
         sv.setOnTouchListener(null);
+
+        surface = null;
+        if (paperBitmap != null) {
+            paperBitmap.recycle();
+            paperBitmap = null;
+            paperCanvas = null;
+        }
+
     }
 
     View.OnTouchListener touchListener = new View.OnTouchListener() {
@@ -118,20 +109,25 @@ public class MainActivity extends AppCompatActivity {
     float lastX, lastY;
 
     private void paintStartDot(float x, float y) {
-        Canvas canvas = surface.lockCanvas(null);
+        if (paperCanvas == null) return;
 
-        canvas.drawPoint(x, y, drawPaint);
-        surface.unlockCanvasAndPost(canvas);
+        paperCanvas.drawPoint(x, y, drawPaint);
 
-        lastX = x;
-        lastY = y;
+        drawPaperBitmap(x, y);
+
     }
 
     private void paintEndDot(float x, float y) {
+        if (paperCanvas == null) return;
+
+        paperCanvas.drawLine(lastX, lastY, x, y, drawPaint);
+
+        drawPaperBitmap(x, y);
+    }
+
+    private void drawPaperBitmap(float x, float y) {
         Canvas canvas = surface.lockCanvas(null);
-
-        canvas.drawLine(lastX, lastY, x, y, drawPaint);
-
+        canvas.drawBitmap(paperBitmap, 0, 0, null);
         surface.unlockCanvasAndPost(canvas);
 
         lastX = x;
