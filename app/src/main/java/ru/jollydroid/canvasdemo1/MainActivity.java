@@ -16,12 +16,13 @@ public class MainActivity extends AppCompatActivity {
     private SurfaceView sv;
     private SurfaceHolder holder;
     private Surface surface;
-    private Bitmap paperBitmap;
 
     public static final String TAG = "happy";
-    private Canvas paperCanvas;
 
-    
+    /*
+     * SufraceView можно использовать только после его инициализации.
+     * О ней мы узнает из колбэка
+     */
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -29,10 +30,16 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         sv = (SurfaceView) findViewById(R.id.sv);
+        assert sv != null;
         holder = sv.getHolder();
 
         holder.addCallback(callback);
     }
+
+    /*
+     * Колбэк.
+     * surfaceChanged() будет вызвано как при первом создании, так и при изменении
+     */
 
     SurfaceHolder.Callback2 callback = new SurfaceHolder.Callback2() {
         @Override
@@ -48,7 +55,6 @@ public class MainActivity extends AppCompatActivity {
         public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
             stopPaint();
             startPaint(width, height);
-
         }
 
         @Override
@@ -56,6 +62,16 @@ public class MainActivity extends AppCompatActivity {
             stopPaint();
         }
     };
+
+    /*
+     * Рисовать мы будем в Bitmap, затем копировать его в SufraceView.
+     * Соответственно, Bitmap надо создать.
+     *
+     * Переноса уже нарисованной картинки при изменении из старого битмапа в новый нет.
+     */
+
+    private Bitmap paperBitmap;
+    private Canvas paperCanvas;
 
     private void startPaint(int width, int height) {
         surface = holder.getSurface();
@@ -69,6 +85,7 @@ public class MainActivity extends AppCompatActivity {
         sv.setOnTouchListener(null);
 
         surface = null;
+
         if (paperBitmap != null) {
             paperBitmap.recycle();
             paperBitmap = null;
@@ -77,16 +94,23 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    /*
+     * Обработка касаний. При касании ставим первую точку линии,
+     * дальше продолжаем.
+     *
+     * Касание в нескольких точках не обрабатывается.
+     */
     View.OnTouchListener touchListener = new View.OnTouchListener() {
         @Override
         public boolean onTouch(View v, MotionEvent event) {
 
             if (event.getAction() == MotionEvent.ACTION_DOWN) {
-                paintStartDot(event.getX(), event.getY());
+                drawStartDot(event.getX(), event.getY());
 
-            } else if (event.getAction() == MotionEvent.ACTION_MOVE) {
-                paintEndDot(event.getX(), event.getY());
-
+            } else if (event.getAction() == MotionEvent.ACTION_MOVE
+                    || event.getAction() == MotionEvent.ACTION_UP)
+            {
+                drawEndDot(event.getX(), event.getY());
             }
 
             return true;
@@ -94,9 +118,12 @@ public class MainActivity extends AppCompatActivity {
 
     };
 
+    /*
+     * Инициализация элемента, из которого будет состоять линия
+     */
+
     private int paintColor = 0xffff0000;
     private Paint drawPaint = new Paint();
-
     {
         drawPaint.setColor(paintColor);
 //        drawPaint.setAntiAlias(true);
@@ -106,9 +133,13 @@ public class MainActivity extends AppCompatActivity {
         drawPaint.setStrokeCap(Paint.Cap.ROUND);
     }
 
+    /*
+     * рисуем точку и линию
+     */
+
     float lastX, lastY;
 
-    private void paintStartDot(float x, float y) {
+    private void drawStartDot(float x, float y) {
         if (paperCanvas == null) return;
 
         paperCanvas.drawPoint(x, y, drawPaint);
@@ -117,7 +148,7 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    private void paintEndDot(float x, float y) {
+    private void drawEndDot(float x, float y) {
         if (paperCanvas == null) return;
 
         paperCanvas.drawLine(lastX, lastY, x, y, drawPaint);
@@ -125,6 +156,13 @@ public class MainActivity extends AppCompatActivity {
         drawPaperBitmap(x, y);
     }
 
+    /*
+     * Копирование битмапа с картинкой в Surface.
+     * Прямо в Bitmap от Surface рисовать нельзя - он может прийти, не соответствующий
+     * текущему отображаемому состоянию.
+     *
+     * http://stackoverflow.com/a/36267113/1263771
+     */
     private void drawPaperBitmap(float x, float y) {
         Canvas canvas = surface.lockCanvas(null);
         canvas.drawBitmap(paperBitmap, 0, 0, null);
